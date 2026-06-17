@@ -87,8 +87,8 @@ export default function LandingPage() {
 
     startTransition(async () => {
       try {
-        // 1. Create temporary booking and get Razorpay order parameters
-        const orderRes = await fetch('/api/pay', {
+        // 1. Create booking and get UPI payment parameters
+        const payRes = await fetch('/api/pay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -100,75 +100,23 @@ export default function LandingPage() {
           }),
         });
 
-        const orderData = await orderRes.json();
+        const payData = await payRes.json();
 
-        if (!orderRes.ok || orderData.error) {
-          setErrorMsg(orderData.error || 'Failed to create payment order. Please try again.');
+        if (!payRes.ok || payData.error) {
+          setErrorMsg(payData.error || 'Failed to initiate booking. Please try again.');
           return;
         }
 
-        const { orderId, amount, keyId, bookingId } = orderData;
+        const { upiUrl, bookingId } = payData;
 
-        // 2. Configure and trigger Razorpay Checkout
-        const options = {
-          key: keyId,
-          amount: amount,
-          currency: 'INR',
-          name: 'Meta Vibronics',
-          description: '60-Minute Premium Consultation',
-          image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', // glowing abstract shape
-          order_id: orderId,
-          handler: async function (response: any) {
-            setErrorMsg('');
-            setLoadingSlots(true); // show general loading during verification
-            try {
-              // 3. Verify payment on server
-              const verifyRes = await fetch('/api/pay/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_signature: response.razorpay_signature,
-                  bookingId: bookingId,
-                }),
-              });
+        // 2. Redirect to UPI payment link in a new tab to let them pay
+        window.open(upiUrl, '_blank');
 
-              const verifyData = await verifyRes.json();
-              if (verifyRes.ok && verifyData.success) {
-                // Redirect to success page
-                router.push(`/success?bookingId=${verifyData.bookingId}`);
-              } else {
-                setErrorMsg(verifyData.error || 'Payment verification failed. Please check with your bank.');
-              }
-            } catch (vErr) {
-              console.error('Error verifying payment:', vErr);
-              setErrorMsg('Connection error verifying payment. Do not refresh; we will double-check via email.');
-            } finally {
-              setLoadingSlots(false);
-            }
-          },
-          prefill: {
-            name: name,
-            contact: phone,
-            email: email || '',
-          },
-          notes: {
-            bookingId: bookingId,
-          },
-          theme: {
-            color: '#6366f1', // Indigo accent
-          },
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', function (response: any) {
-          setErrorMsg(`Payment failed: ${response.error.description}`);
-        });
-        rzp.open();
+        // 3. Move main page to success verification page
+        router.push(`/success?bookingId=${bookingId}&status=pending_verification`);
       } catch (err) {
         console.error('Error initiating checkout:', err);
-        setErrorMsg('Failed to initialize Razorpay Checkout. Please try again.');
+        setErrorMsg('Failed to initialize payment redirection. Please try again.');
       }
     });
   };
@@ -179,8 +127,6 @@ export default function LandingPage() {
 
   return (
     <div className="bg-[#0a0a0b] text-slate-100 min-h-screen selection:bg-indigo-500 selection:text-white relative overflow-hidden flex flex-col justify-between">
-      {/* Script Loader for Razorpay Checkout */}
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
       {/* Decorative Radial Lights */}
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-radial-glow -z-10 pointer-events-none" />
@@ -234,7 +180,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center space-x-2">
               <Shield className="h-4.5 w-4.5 text-indigo-400" />
-              <span>Safe Razorpay Checkout</span>
+              <span>Instant UPI Redirect</span>
             </div>
           </div>
         </section>
@@ -279,7 +225,7 @@ export default function LandingPage() {
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center md:text-left space-y-2">
               <h2 className="text-2xl md:text-3xl font-extrabold text-white">Schedule Your Session</h2>
-              <p className="text-slate-400 text-sm">Select a date, pick an open hour, and confirm your details. Session fee: <strong className="text-indigo-400 font-bold">₹999 INR</strong>.</p>
+              <p className="text-slate-400 text-sm">Select a date, pick an open hour, and confirm your details. Session fee: <strong className="text-indigo-400 font-bold">₹120 INR</strong>.</p>
             </div>
 
             {errorMsg && (
@@ -427,12 +373,12 @@ export default function LandingPage() {
                       <span>Initiating Checkout...</span>
                     </>
                   ) : (
-                    <span>Pay ₹999 & Confirm Booking</span>
+                    <span>Pay ₹120 via UPI & Confirm Booking</span>
                   )}
                 </button>
 
                 <p className="text-center text-[10px] text-slate-500 leading-normal">
-                  By booking, you agree to our 24h cancellation terms. Payments are processed securely via Razorpay Checkout. Zoom links will be generated automatically.
+                  By booking, you agree to our 24h cancellation terms. Payments are processed securely via UPI redirection. Zoom links will be generated automatically after manual payment confirmation.
                 </p>
               </div>
 

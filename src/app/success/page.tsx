@@ -10,6 +10,7 @@ export default async function SuccessPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const bookingId = (resolvedSearchParams.bookingId as string) || '';
+  const status = (resolvedSearchParams.status as string) || '';
 
   let booking = null;
   if (bookingId) {
@@ -38,6 +39,8 @@ export default async function SuccessPage({
       </div>
     );
   }
+
+  const isPendingVerification = status === 'pending_verification' && booking.bookingStatus !== 'confirmed';
 
   const formattedDate = new Date(booking.scheduledTime).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -77,18 +80,35 @@ export default async function SuccessPage({
       {/* Main Success Container */}
       <main className="max-w-3xl mx-auto px-6 py-16 w-full">
         <div className="glass-card rounded-3xl p-8 md:p-12 text-center space-y-8 relative overflow-hidden">
-          {/* Glowing Check Icon */}
-          <div className="mx-auto h-20 w-20 rounded-full bg-indigo-500/10 border-2 border-indigo-500/40 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/20 animate-bounce">
-            <CheckCircle2 className="h-10 w-10" />
-          </div>
+          
+          {/* Glowing Check/Clock Icon */}
+          {isPendingVerification ? (
+            <div className="mx-auto h-20 w-20 rounded-full bg-amber-500/10 border-2 border-amber-500/40 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/20 animate-pulse">
+              <Clock className="h-10 w-10" />
+            </div>
+          ) : (
+            <div className="mx-auto h-20 w-20 rounded-full bg-indigo-500/10 border-2 border-indigo-500/40 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/20 animate-bounce">
+              <CheckCircle2 className="h-10 w-10" />
+            </div>
+          )}
 
           <div className="space-y-3">
-            <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Appointment Confirmed</span>
+            <span className={`text-xs font-bold uppercase tracking-widest ${isPendingVerification ? 'text-amber-400' : 'text-indigo-400'}`}>
+              {isPendingVerification ? 'Booking Pending Verification' : 'Appointment Confirmed'}
+            </span>
             <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-none text-white">
-              You're Ready to Tune In
+              {isPendingVerification ? 'Booking Received!' : "You're Ready to Tune In"}
             </h1>
             <p className="text-slate-400 text-sm max-w-lg mx-auto">
-              Hi <strong className="text-slate-200">{booking.customerName}</strong>, your premium consultation booking is verified. We've reserved your slot and scheduled your practitioner.
+              {isPendingVerification ? (
+                <>
+                  Hi <strong className="text-slate-200">{booking.customerName}</strong>, we have registered your slot. Please complete your UPI transaction. Once verified, your calendar invitation and Zoom details will be generated.
+                </>
+              ) : (
+                <>
+                  Hi <strong className="text-slate-200">{booking.customerName}</strong>, your premium consultation booking is verified. We've reserved your slot and scheduled your practitioner.
+                </>
+              )}
             </p>
           </div>
 
@@ -100,9 +120,9 @@ export default async function SuccessPage({
                 <span className="font-mono font-bold text-slate-300">{booking.id}</span>
               </div>
               <div>
-                <span className="text-slate-500 block mb-0.5">Payment Reference</span>
-                <span className="font-mono font-bold text-slate-300 text-ellipsis overflow-hidden block">
-                  {booking.paymentId || 'Verified'}
+                <span className="text-slate-500 block mb-0.5">Payment Status</span>
+                <span className={`font-mono font-bold ${isPendingVerification ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  {isPendingVerification ? 'Pending UPI Verification' : 'Paid & Confirmed'}
                 </span>
               </div>
             </div>
@@ -116,7 +136,7 @@ export default async function SuccessPage({
                 <Clock className="h-5 w-5 text-indigo-400 flex-shrink-0" />
                 <span>{formattedTime} (60 Minutes)</span>
               </div>
-              {booking.zoomJoinUrl && (
+              {!isPendingVerification && booking.zoomJoinUrl && (
                 <div className="flex items-center space-x-3 text-slate-300">
                   <Video className="h-5 w-5 text-indigo-400 flex-shrink-0" />
                   <span className="truncate">Meeting link generated</span>
@@ -125,8 +145,34 @@ export default async function SuccessPage({
             </div>
           </div>
 
-          {/* Interactive Zoom Join CTA */}
-          {booking.zoomJoinUrl ? (
+          {/* Interactive UPI instructions or Zoom Join CTA */}
+          {isPendingVerification ? (
+            <div className="max-w-xl mx-auto bg-amber-950/10 border border-amber-500/20 rounded-2xl p-5 text-left space-y-4">
+              <h4 className="font-bold text-xs text-amber-400 uppercase tracking-wider">UPI Payment Instructions</h4>
+              <p className="text-xs text-slate-300 leading-normal">
+                Please transfer the session fee of **₹120.00** to the following UPI address if you haven't completed it:
+              </p>
+              <div className="bg-black/40 p-3.5 rounded-xl flex flex-col space-y-2 text-xs font-semibold">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">UPI Address:</span>
+                  <span className="text-slate-200 select-all">9868842836@superyes</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Amount:</span>
+                  <span className="text-indigo-300">₹120.00 INR</span>
+                </div>
+              </div>
+              <a
+                href={`https://upi.pe/9868842836@superyes/120.00`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all text-xs"
+              >
+                <span>Launch UPI Payment Link</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          ) : booking.zoomJoinUrl ? (
             <div className="max-w-xl mx-auto space-y-3">
               <a
                 href={booking.zoomJoinUrl}
@@ -152,15 +198,31 @@ export default async function SuccessPage({
           <div className="max-w-xl mx-auto text-left space-y-4 pt-4 border-t border-slate-800/40">
             <h3 className="font-bold text-sm text-slate-200 uppercase tracking-wider">Next Steps</h3>
             <ul className="text-xs text-slate-400 space-y-2.5 list-disc pl-4 leading-normal">
-              <li>
-                <strong>Check Calendar:</strong> A Google Calendar invite has been scheduled and shared with your practitioner.
-              </li>
-              <li>
-                <strong>Preparation:</strong> Have a working microphone, high-speed connection, and quiet environment ready.
-              </li>
-              <li>
-                <strong>Follow Up:</strong> Session summary and diagnostic logs will be emailed to you after completion.
-              </li>
+              {isPendingVerification ? (
+                <>
+                  <li>
+                    <strong>Payment Verification:</strong> Our administrator checks incoming UPI transactions within 2-4 hours.
+                  </li>
+                  <li>
+                    <strong>Check Email:</strong> Once verified, your calendar invitation and Zoom details will be generated and emailed instantly.
+                  </li>
+                  <li>
+                    <strong>Contact Support:</strong> For immediate approvals, share your payment receipt with reference code <strong className="text-indigo-400">{booking.id}</strong> to support@metavibronics.com.
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <strong>Check Calendar:</strong> A Google Calendar invite has been scheduled and shared with your practitioner.
+                  </li>
+                  <li>
+                    <strong>Preparation:</strong> Have a working microphone, high-speed connection, and quiet environment ready.
+                  </li>
+                  <li>
+                    <strong>Follow Up:</strong> Session summary and diagnostic logs will be emailed to you after completion.
+                  </li>
+                </>
+              )}
             </ul>
           </div>
 
@@ -180,7 +242,7 @@ export default async function SuccessPage({
       <footer className="border-t border-slate-900 bg-black/40 py-8 text-center text-xs text-slate-500">
         <div className="max-w-6xl mx-auto px-6 space-y-3">
           <p>
-            Need help? Contact our elite support desk at{' '}
+            Need help? Contact our support desk at{' '}
             <strong className="text-slate-400">support@metavibronics.com</strong> or call{' '}
             <strong className="text-slate-400">+1 (800) VIBRONICS</strong>
           </p>

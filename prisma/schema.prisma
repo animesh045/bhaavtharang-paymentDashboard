@@ -1,0 +1,28 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Booking {
+  id              String   @id @default(uuid())
+  customerName    String
+  phone           String
+  email           String?
+  notes           String?
+  amount          Int      // Amount in paise (INR)
+  orderId         String   @unique // Razorpay Order ID
+  paymentId       String?  @unique // Razorpay Payment ID
+  paymentStatus   String   @default("pending") // pending, paid, failed, refunded
+  bookingStatus   String   @default("pending") // pending, confirmed, cancelled
+  zoomMeetingId   String?
+  zoomJoinUrl     String?
+  zoomStartUrl    String?
+  calendarEventId String?
+  scheduledTime   DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
